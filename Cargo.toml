@@ -1,0 +1,9 @@
+[package]
+name = "jinlo_threadpool"
+version = "0.1.0"
+authors = ["lotus.jin <iamlotus@gmail.com>"]
+
+[dependencies]
+
+[features]
+enable_log=[]
