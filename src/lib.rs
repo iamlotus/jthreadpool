@@ -403,7 +403,7 @@ impl ThreadPool {
     /// use std::thread;
     /// use std::time::Duration;
     ///
-    /// // a pool
+    /// // create a pool with 2 threads
     /// let pool=ThreadPool::new(2);
     /// let counter:Arc<AtomicUsize>=Arc::new(AtomicUsize::new(0));
     /// let c1=counter.clone();
@@ -433,6 +433,8 @@ impl ThreadPool {
     ///
     /// pool.join();
     /// assert_eq!(counter.load(Ordering::SeqCst),6);
+    ///
+    ///
     /// ```
     ///
     /// [`Builder`]: Builder.html
