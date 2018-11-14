@@ -1,4 +1,4 @@
 [[package]]
-name = "jinlo_threadpool"
+name = "jthreadpool"
 version = "0.1.0"
 

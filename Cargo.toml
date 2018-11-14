@@ -1,5 +1,5 @@
 [package]
-name = "jinlo_threadpool"
+name = "jthreadpool"
 version = "0.1.0"
 authors = ["lotus.jin <iamlotus@gmail.com>"]
 

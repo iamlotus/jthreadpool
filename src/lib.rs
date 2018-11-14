@@ -1,6 +1,6 @@
 //! A simple thread pool with fix number of threads. Support
-//! 1)auto replenishment of thread when panic happens
-//! 2) elegant exit
+//! * auto replenishment of thread when panic happens
+//! * elegant exit
 
 use std::thread;
 use std::sync::mpsc;
@@ -281,14 +281,37 @@ impl ThreadPoolSharedData{
     }
 }
 
-struct Builder {
+/// [`ThreadPool`] Factory, used to config properties of [`ThreadPool`]
+/// Some configuration option by now:
+/// * `name_prefix`: name_prefix of thread in the built [`ThreadPool`]. By specified `name_prefix`, name of thread
+/// will be `$name_prefix_0`,`$name_prefix_1`, etc.
+///
+/// * `num_threads`: number of thread in the built [`ThreadPool`], noted if a thread panics, a replenishment will
+/// be generated, it is guaranteed there are `num_threads` threads in the  `ThreadPool`
+///
+/// * stack_size: size of stack of generated thread (in byte).
+///
+/// # Examples
+/// Generate a threadpool with fixed 4 threads and 8M stack. Thread name like "daemon-0","daemon-1",etc:
+///
+/// ```
+/// let pool=jthreadpool::Builder::new()
+///         .num_threads(4)
+///         .name_prefix(String::from("daemon"))
+///         .stack_size(8_000_000)
+///         .build();
+/// ```
+///
+/// [`ThreadPool`]: ThreadPool.html
+
+pub struct Builder {
     name_prefix: Option<String>,
     num_threads:Option<usize>,
     stack_size:Option<usize>,
 }
 
 impl Builder {
-    fn new()-> Builder {
+    pub fn new()-> Builder {
         Builder {
             name_prefix:None,
             num_threads:None,
@@ -361,22 +384,72 @@ pub struct ThreadPool{
     shared_data:Arc<ThreadPoolSharedData>
 }
 
-
 impl ThreadPool {
-    /// Create a new Thread Pool
+    /// Create a new Thread Pool, to config more properties of `ThreadPool`, use [`Builder`]
     /// #argument
     ///
-    /// size - the number of threads in the pool
+    /// num_threads - the number of threads in the pool
     ///
     /// #Panics
     ///
     /// The `new` function will panic if size is 0
-
+    /// # Examples
+    /// Create a thread with 2 threads, simulate Barrier.
+    ///
+    /// ```
+    /// use jthreadpool::ThreadPool;
+    /// use std::sync::atomic::{AtomicUsize,Ordering};
+    /// use std::sync::Arc;
+    /// use std::thread;
+    /// use std::time::Duration;
+    ///
+    /// // a pool
+    /// let pool=ThreadPool::new(2);
+    /// let counter:Arc<AtomicUsize>=Arc::new(AtomicUsize::new(0));
+    /// let c1=counter.clone();
+    /// let c2=counter.clone();
+    /// let c3=counter.clone();
+    ///
+    /// pool.submit(move||{
+    /// thread::sleep(Duration::from_millis(10));
+    /// c1.fetch_add(1, Ordering::SeqCst);
+    /// }).unwrap();
+    ///
+    /// pool.submit(move||{
+    /// thread::sleep(Duration::from_millis(10));
+    /// c2.fetch_add(2, Ordering::SeqCst);
+    /// }).unwrap();
+    ///
+    /// // thread panic
+    /// pool.submit(||{
+    /// thread::sleep(Duration::from_millis(10));
+    /// panic!();
+    /// }).unwrap();
+    ///
+    /// pool.submit(move||{
+    /// thread::sleep(Duration::from_millis(10));
+    /// c3.fetch_add(3, Ordering::SeqCst);
+    /// }).unwrap();
+    ///
+    /// pool.join();
+    /// assert_eq!(counter.load(Ordering::SeqCst),6);
+    /// ```
+    ///
+    /// [`Builder`]: Builder.html
     pub fn new(num_threads:usize)->ThreadPool{
         Builder::new().num_threads(num_threads).build()
     }
 
-    /// Number of workers in the ThreadPool
+    /// Get the number of workers in the ThreadPool
+    /// # Examples
+    ///
+    /// ```
+    /// use jthreadpool::ThreadPool;
+    /// let pool=ThreadPool::new(4);
+    /// assert_eq!(pool.size(),4);
+    /// ```
+    ///
+    /// [`Builder`]: Builder.html
     pub fn size(&self)->usize{
         self.shared_data.workers.lock().unwrap().len()
     }
@@ -387,6 +460,15 @@ impl ThreadPool {
     }
 
 
+    /// Submit task to `ThreadPool`
+    /// # Examples
+    /// create a thread pool and calculate parallel
+    ///
+    /// ```
+    /// use jthreadpool::ThreadPool;
+    ///
+    /// let pool=ThreadPool::new(4);
+    ///
     pub fn submit<F>(&self, job:F)->Result<(), ThreadPoolError>
         where F:FnOnce()+Send+'static{
 
